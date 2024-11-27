@@ -349,16 +349,94 @@ ORDER BY
 
 -- C. Ingredient Optimisation
 --     1. What are the standard ingredients for each pizza?
+SELECT 
+    pn.pizza_name,
+    STRING_AGG(pt.topping_name, ', ' ORDER BY pt.topping_name) AS standard_ingredients
+FROM pizza_runner.pizza_recipes pr
+JOIN pizza_runner.pizza_names pn ON pr.pizza_id = pn.pizza_id
+JOIN pizza_runner.pizza_toppings pt ON CAST(pt.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(pr.toppings, ', '))
+GROUP BY pn.pizza_name;
+
 --     2. What was the most commonly added extra?
+SELECT
+    pt.topping_name AS extra,
+    COUNT(*) AS count
+FROM pizza_runner.customer_orders co
+JOIN pizza_runner.pizza_toppings pt ON CAST(pt.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(co.extras, ', '))
+WHERE co.extras <> 'null' AND co.extras <> ''
+GROUP BY pt.topping_name
+ORDER BY count DESC
+LIMIT 1;
+
 --     3. What was the most common exclusion?
+SELECT
+    pt.topping_name AS exclusion,
+    COUNT(*) AS count
+FROM pizza_runner.customer_orders co
+JOIN pizza_runner.pizza_toppings pt ON CAST(pt.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(co.exclusions, ', '))
+WHERE co.exclusions <> 'null' AND co.exclusions <> ''
+GROUP BY pt.topping_name
+ORDER BY count DESC
+LIMIT 1;
+
 --     4. Generate an order item for each record in the customers_orders table in the format of one of the following:
 --         Meat Lovers
 --         Meat Lovers - Exclude Beef
 --         Meat Lovers - Extra Bacon
 --         Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers
+SELECT
+    pn.pizza_name ||
+    CASE
+        WHEN co.exclusions <> '' THEN
+            CASE
+                WHEN co.exclusions = 'null' THEN ''
+                ELSE ' - Exclude ' || STRING_AGG(pt1.topping_name, ', ' ORDER BY pt1.topping_name)
+            END
+        ELSE ''
+    END ||
+    CASE
+        WHEN co.extras <> '' THEN
+            CASE
+                WHEN co.exclusions = 'null' THEN ''
+                ELSE ' - Extra ' || STRING_AGG(pt2.topping_name, ', ' ORDER BY pt2.topping_name)
+            END
+        ELSE ''
+    END AS order_item
+FROM pizza_runner.customer_orders co
+JOIN pizza_runner.pizza_names pn ON pn.pizza_id = co.pizza_id
+LEFT JOIN pizza_runner.pizza_toppings pt1 ON CAST(pt1.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(co.exclusions, ', '))
+LEFT JOIN pizza_runner.pizza_toppings pt2 ON CAST(pt2.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(co.extras, ', '))
+GROUP BY pn.pizza_name, co.exclusions, co.extras;
+
 --     5. Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
 --         For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
+SELECT
+    co.order_id,
+    pn.pizza_name || ': ' ||
+    STRING_AGG(
+        CASE
+            WHEN CAST(pt.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(co.extras, ', ')) THEN '2x' || pt.topping_name
+            ELSE pt.topping_name
+        END, ', ' ORDER BY pt.topping_name)
+    AS ingridient
+FROM pizza_runner.customer_orders co
+JOIN pizza_runner.pizza_names pn ON pn.pizza_id = co.pizza_id
+JOIN pizza_runner.pizza_recipes pr ON co.pizza_id = pr.pizza_id
+JOIN pizza_runner.pizza_toppings pt ON CAST(pt.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(pr.toppings, ', '))
+GROUP BY co.order_id, pn.pizza_name
+ORDER BY co.order_id;
+
 --     6. What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
+SELECT
+    pt.topping_name,
+    COUNT(pt.topping_name)
+FROM pizza_runner.customer_orders co
+JOIN pizza_runner.runner_orders ro ON co.order_id = ro.order_id
+JOIN pizza_runner.pizza_recipes pr ON pr.pizza_id = co.pizza_id
+JOIN pizza_runner.pizza_toppings pt ON CAST(pt.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(pr.toppings, ', '))
+WHERE ro.duration <> 'null' AND ro.cancellation <> 'null'
+GROUP BY pt.topping_name;
+
 -- D. Pricing and Ratings
 --     1. If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
 --     2. What if there was an additional $1 charge for any pizza extras?
