@@ -1,4 +1,4 @@
-# Case Study Document: Danny's Diner
+# Case Study Document: Pizza Runner
 
 **Prepared by:** Vijay Adithya B K
 
