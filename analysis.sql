@@ -429,18 +429,50 @@ ORDER BY co.order_id;
 --     6. What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
 SELECT
     pt.topping_name,
-    COUNT(pt.topping_name)
+    COUNT(pt.topping_name) AS total_quantity
 FROM pizza_runner.customer_orders co
 JOIN pizza_runner.runner_orders ro ON co.order_id = ro.order_id
 JOIN pizza_runner.pizza_recipes pr ON pr.pizza_id = co.pizza_id
 JOIN pizza_runner.pizza_toppings pt ON CAST(pt.topping_id AS TEXT) = ANY(STRING_TO_ARRAY(pr.toppings, ', '))
-WHERE ro.duration <> 'null' AND ro.cancellation <> 'null'
-GROUP BY pt.topping_name;
+WHERE ro.duration <> 'null'
+GROUP BY pt.topping_name
+ORDER BY total_quantity DESC;
 
 -- D. Pricing and Ratings
 --     1. If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
+SELECT
+    SUM(
+        CASE
+            WHEN pn.pizza_name = 'Meatlovers' THEN 12
+            ELSE 10
+        END) AS total_revenue
+FROM pizza_runner.customer_orders co
+JOIN pizza_runner.runner_orders ro ON ro.order_id = co.order_id
+JOIN pizza_runner.pizza_names pn ON pn.pizza_id = co.pizza_id
+WHERE ro.duration <> 'null';
+
 --     2. What if there was an additional $1 charge for any pizza extras?
 --         Add cheese is $1 extra
+SELECT
+    -- co.order_id,
+    -- pn.pizza_name,
+    -- co.extras,
+    SUM(
+        CASE
+            WHEN pn.pizza_name = 'Meatlovers' THEN 12
+            ELSE 10
+        END) +
+    SUM(
+        CASE
+            WHEN co.extras <> 'null' AND co.extras <> '' THEN ARRAY_LENGTH(STRING_TO_ARRAY(co.extras, ', '), 1)
+            ELSE 0
+        END) AS total_revenue
+FROM pizza_runner.customer_orders co
+JOIN pizza_runner.runner_orders ro ON ro.order_id = co.order_id
+JOIN pizza_runner.pizza_names pn ON pn.pizza_id = co.pizza_id
+WHERE ro.duration <> 'null';
+-- GROUP BY co.order_id, pn.pizza_name, co.extras;
+
 --     3. The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
 --     4. Using your newly generated table - can you join all of the information together to form a table which has the following information for successful deliveries?
 --         customer_id
