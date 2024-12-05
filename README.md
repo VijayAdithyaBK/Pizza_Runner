@@ -2,9 +2,9 @@
 
 **Prepared by:** Vijay Adithya B K
 
-**Experience:** 3+ Years as Data Analyst
+**Experience:** 3 Years as Data Analyst
 
-**Portfolio:** https://vijayadithyabk.framer.website/
+**Portfolio:** [Your Portfolio Link]
 
 # Pizza Runner Case Study
 
